@@ -1,0 +1,69 @@
+# AWS Lambda Build Pipeline.
+# Validate lambda code and build package zips and deploy to S3. Deploy via terraform to create
+#
+# kms key + policy
+# iam role for lambda with policies
+# dynamodb table encrypted with key
+# lambda, logwatch group and alias
+#
+
+parameters:
+  - name: awsCredentials
+    type: string
+  - name: awsRegion
+    type: string
+  - name: awsEnv
+    type: string
+  - name: terraformCredentials
+    type: string
+  - name: terraformS3StateBucket
+    type: string
+  - name: terraformS3StateFile
+    type: string
+  - name: createS3DeploymentBucket
+    type: boolean
+
+stages:
+
+  - stage: DEPLOY
+    jobs:
+      - deployment: Run_Terraform_INIT_PLAN_APPLY
+        displayName: Run_Terraform_INIT_PLAN_APPLY
+        # dependsOn: SAST_Scan
+        # Creates an environment if it doesn't exist.
+        environment: "aws-channels-connect-${{ parameters.awsEnv }}"
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - download: none
+                - checkout: self
+                - task: TerraformTaskV1@0
+                  displayName: "Terraform INIT"
+                  inputs:
+                    provider:             'aws'
+                    command:              'init'
+                    workingDirectory:     'terraform'
+                    backendServiceAWS:    ${{ parameters.terraformCredentials }}
+                    backendAWSBucketName: ${{ parameters.terraformS3StateBucket}}
+                    backendAWSKey:        ${{ parameters.terraformS3StateFile}}
+                - task: TerraformTaskV1@0
+                  displayName: "Terraform PLAN"
+                  inputs:
+                    provider: 'aws'
+                    command: 'plan'
+                    workingDirectory:           'terraform'
+                    commandOptions: >-
+                      -var="awsRegion=${{ parameters.awsRegion}}"
+                      -var="awsEnv=${{ parameters.awsEnv }}"
+                    environmentServiceNameAWS:  ${{ parameters.terraformCredentials }}
+                - task: TerraformTaskV1@0
+                  displayName: "Terraform APPLY"
+                  inputs:
+                    provider: 'aws'
+                    command: 'apply'
+                    workingDirectory:           'terraform'
+                    commandOptions: >-
+                      -var="awsRegion=${{ parameters.awsRegion}}"
+                      -var="awsEnv=${{ parameters.awsEnv }}"
+                    environmentServiceNameAWS:  ${{ parameters.terraformCredentials }}

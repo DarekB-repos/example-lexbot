@@ -1,0 +1,18 @@
+# AWS Lambda Build Pipeline - build lampda zip with linting/testing, upload to S3. Use terraform to deploy
+
+trigger:
+  - feature/*
+
+pool:
+  vmImage: "ubuntu-latest"
+
+extends:
+  template: aws.connect.deploy-pipeline.yml
+  parameters:
+    awsCredentials: "CredsName"
+    awsRegion: "eu-west-2"
+    awsEnv: "devtest"
+    terraformCredentials: "terraformCredsName"
+    terraformS3StateBucket: "bucket-name"
+    terraformS3StateFile: "bucket-name.tf"
+    createS3DeploymentBucket: true
